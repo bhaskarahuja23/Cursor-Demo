@@ -1,0 +1,26 @@
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: #14141c;
+  overflow: hidden;
+}
+
+body {
+  display: grid;
+  place-items: center;
+}
+
+canvas {
+  width: min(calc(100vw - 24px), calc((100vh - 24px) * 256 / 224));
+  height: auto;
+  aspect-ratio: 256 / 224;
+  background: #000;
+  image-rendering: auto;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+  touch-action: none;
+}
+
+canvas:focus {
+  outline: none;
+}
