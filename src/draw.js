@@ -1,5 +1,5 @@
-import { faceImage } from "./faces.js?v=5";
-import { TILE, VIEW_H, VIEW_W, bumpOffset, isSolid } from "./world.js?v=5";
+import { faceImage } from "./faces.js";
+import { TILE, VIEW_H, VIEW_W, bumpOffset } from "./world.js";
 
 const FONT = {
   A: ["010", "101", "111", "101", "101"],
@@ -104,7 +104,7 @@ function drawHills(ctx, camX) {
 
 function drawGround(ctx, world, tx, ty, x, y) {
   const above = ty > 0 ? world.tiles[ty - 1][tx] : ".";
-  const topped = above === "." || above === "C" || above === "S";
+  const topped = above === "." || above === "F";
   ctx.fillStyle = "#c65a18";
   ctx.fillRect(x, y, 16, 16);
   ctx.fillStyle = "#9a3c10";
@@ -115,9 +115,6 @@ function drawGround(ctx, world, tx, ty, x, y) {
     ctx.fillRect(x, y, 16, 4);
     ctx.fillStyle = "#d8f090";
     ctx.fillRect(x, y, 16, 2);
-  } else if (!isSolid(above) && above !== "F") {
-    ctx.fillStyle = "#3cba45";
-    ctx.fillRect(x, y, 16, 3);
   }
 }
 
@@ -278,18 +275,11 @@ export function drawRunner(ctx, x, y, facing, frame) {
   ctx.restore();
 }
 
-function drawWalker(ctx, x, y, frame, dead) {
-  x = Math.round(x);
-  y = Math.round(y);
-  if (faceImage("giulio")) {
-    if (!dead) {
-      ctx.fillStyle = "#6a3810";
-      ctx.fillRect(x + 1, y + 14, 5, frame ? 3 : 2);
-      ctx.fillRect(x + 8, y + 14, 5, frame ? 2 : 3);
-    }
-    return;
-  }
-  if (dead) {
+function drawWalker(ctx, entity, cam, frame) {
+  if (faceImage("giulio")) return;
+  const x = Math.round(entity.x + (entity.w - 14) / 2 - cam);
+  const y = Math.round(entity.y + entity.h - (entity.dead ? 6 : 16));
+  if (entity.dead) {
     ctx.fillStyle = "#e09030";
     ctx.fillRect(x, y, 14, 6);
     ctx.fillStyle = "#1a1a1a";
@@ -314,11 +304,12 @@ function drawWalker(ctx, x, y, frame, dead) {
   ctx.fillRect(x + 8, y + 4, 3, 1);
 }
 
-function drawCrawler(ctx, x, y, facing, frame, dead) {
-  x = Math.round(x);
-  y = Math.round(y);
+function drawCrawler(ctx, entity, cam, frame) {
   if (faceImage("francesco")) return;
-  if (dead) {
+  const facing = entity.vx < 0 ? -1 : 1;
+  const x = Math.round(entity.x + (entity.w - 16) / 2 - cam);
+  const y = Math.round(entity.y + entity.h - (entity.dead ? 6 : 12));
+  if (entity.dead) {
     ctx.fillStyle = "#1c9a34";
     ctx.fillRect(x, y, 16, 6);
     ctx.fillStyle = "#b8ff90";
@@ -356,33 +347,28 @@ function drawCabbage(ctx, x, y) {
   ctx.fillRect(x + 5, y, 2, 2);
 }
 
-function drawCoin() {}
-
 function drawEntities(ctx, entities, camera, time) {
   const cam = Math.round(camera.x);
   for (const entity of entities) {
-    if (entity.type === "coin") {
-      drawCoin(ctx, { x: entity.x - cam, y: entity.y, phase: entity.x * 0.05 }, time);
-    } else if (entity.type === "cabbage") {
+    if (entity.type === "cabbage") {
       drawCabbage(ctx, entity.x - cam, entity.y);
     } else if (entity.type === "enemy" && entity.kind === "walker") {
       const step = Math.floor(time / 8) % 2;
-      drawWalker(ctx, entity.x - cam, entity.y, step, entity.dead);
+      drawWalker(ctx, entity, cam, step);
     } else if (entity.type === "enemy") {
       const step = Math.floor(time / 8) % 2;
-      const facing = entity.vx < 0 ? -1 : 1;
-      drawCrawler(ctx, entity.x - cam, entity.y, facing, step, entity.dead);
+      drawCrawler(ctx, entity, cam, step);
     } else if (entity.type === "pop") {
       drawTextShadow(ctx, entity.text, Math.round(entity.x - cam), Math.round(entity.y), "#f8e060", 1);
     }
   }
 }
 
-export function drawScene(ctx, game) {
+export function drawScene(ctx, game, blink = false) {
   const { world, camera, player, entities } = game;
   const cam = Math.round(camera.x);
   ctx.fillStyle = "#5c94fc";
-  ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+  ctx.fillRect(-8, 0, VIEW_W + 16, VIEW_H);
   drawClouds(ctx, cam);
   drawHills(ctx, cam);
 
@@ -398,7 +384,6 @@ export function drawScene(ctx, game) {
   }
 
   drawEntities(ctx, entities, camera, game.time);
-  const blink = game.state === "hurt" && Math.floor(game.timer / 4) % 2 === 0;
   if (!blink) {
     drawRunner(ctx, player.x - cam - 2, player.y, player.facing, player.onGround ? player.frame : 1);
   }
@@ -413,6 +398,7 @@ export function drawHud(ctx, game) {
   drawTextShadow(ctx, "WORLD", 188, 6, "#ffffff");
   drawTextShadow(ctx, `1-${level}`, 200, 18, "#ffffff");
   drawRunner(ctx, 8, 200, 1, 0);
+  stampFace(ctx, "bhaskar", 8, 198, 16, 1);
   drawTextShadow(ctx, `x${game.lives}`, 28, 206, "#ffffff");
 
   if (game.state === "playing" && game.banner > 30) {
@@ -440,8 +426,10 @@ export function drawTitle(ctx, time) {
   }
   const step = Math.floor(time / 8) % 2;
   drawRunner(ctx, 116, 176, 1, step);
-  drawCoin(ctx, { x: 96, y: 168, phase: 0 }, time);
-  drawCoin(ctx, { x: 148, y: 164, phase: 1.4 }, time);
+  drawCabbage(ctx, 78, 172);
+}
+
+export function drawTitleText(ctx, time) {
   centerText(ctx, "PIPE RUN", 40, "#ffffff");
   const blink = Math.floor(time / 24) % 2 === 0;
   centerText(ctx, "PRESS ENTER", 68, blink ? "#f8d020" : "#ffffff");
@@ -449,7 +437,6 @@ export function drawTitle(ctx, time) {
   centerText(ctx, "SHIFT OR J RUNS", 126, "#ffffff", 1);
   centerText(ctx, "SPACE OR K JUMPS", 140, "#ffffff", 1);
   centerText(ctx, "BRICKS HIDE CABBAGE", 154, "#9aec78", 1);
-  drawCabbage(ctx, 78, 172);
 }
 
 export function drawOverlay(ctx, game) {
@@ -483,10 +470,10 @@ function coinBob(time, phase) {
   return Math.round(Math.sin(time / 8 + phase) * 2);
 }
 
-function paintCoin(ctx, x, y, scale) {
-  const radius = 8 * scale;
-  const cx = (Math.round(x) + 5) * scale;
-  const cy = (Math.round(y) + 6) * scale;
+function paintCoin(ctx, x, y, w, h, scale) {
+  const radius = (Math.min(w, h) / 2) * scale;
+  const cx = (x + w / 2) * scale;
+  const cy = (y + h / 2) * scale;
   ctx.beginPath();
   ctx.arc(cx, cy, radius, 0, Math.PI * 2);
   ctx.fillStyle = "#f6c410";
@@ -502,56 +489,61 @@ function paintCoin(ctx, x, y, scale) {
   ctx.stroke();
 }
 
-export function drawFaces(ctx, game, scale) {
+export function drawFaces(ctx, game, scale, fx = {}) {
+  const shake = fx.shake || 0;
+  const blink = fx.blink || false;
   ctx.save();
   ctx.imageSmoothingEnabled = true;
   if (game.state === "title") {
     stampFace(ctx, "giulio", 16, 158, 34, scale);
     stampFace(ctx, "francesco", 206, 160, 32, scale);
-    stampFace(ctx, "bhaskar", 116, 174, 18, scale);
-    paintCoin(ctx, 70, 96 + coinBob(game.time, 0), scale);
-    paintCoin(ctx, 168, 96 + coinBob(game.time, 1.4), scale);
+    stampFace(ctx, "bhaskar", 116, 172, 18, scale);
+    paintCoin(ctx, 96, 168 + coinBob(game.time, 0), 12, 12, scale);
+    paintCoin(ctx, 148, 164 + coinBob(game.time, 1.4), 12, 12, scale);
     ctx.restore();
     return;
   }
 
   const cam = Math.round(game.camera.x);
-  const shake = game.state === "hurt" && game.timer % 4 < 2 ? 2 : 0;
   ctx.translate(shake * scale, 0);
-  const blink = game.state === "hurt" && Math.floor(game.timer / 4) % 2 === 0;
   if (!blink && game.player) {
-    stampFace(ctx, "bhaskar", game.player.x - cam - 4, game.player.y - 2, 20, scale);
+    stampFace(ctx, "bhaskar", game.player.x - cam, game.player.y, game.player.w, scale);
   }
   for (const entity of game.entities) {
     const screenX = entity.x - cam;
     if (screenX < -48 || screenX > VIEW_W + 48) continue;
     if (entity.type === "coin") {
-      paintCoin(ctx, screenX, entity.y + coinBob(game.time, entity.x * 0.05), scale);
+      const bob = coinBob(game.time, entity.x * 0.05);
+      paintCoin(ctx, screenX, entity.y + bob, entity.w, entity.h, scale);
       continue;
     }
     if (entity.type !== "enemy") continue;
-    if (entity.kind === "walker") {
-      stampFace(ctx, "giulio", screenX - 8, entity.dead ? entity.y + 4 : entity.y - 14, 32, scale, entity.dead ? 0.45 : 1);
-    } else {
-      stampFace(ctx, "francesco", screenX - 8, entity.dead ? entity.y + 2 : entity.y - 16, 32, scale, entity.dead ? 0.45 : 1);
-    }
+    const squash = entity.dead ? 0.45 : 1;
+    const size = entity.w;
+    const drawY = entity.y + entity.h - size * squash;
+    const name = entity.kind === "walker" ? "giulio" : "francesco";
+    stampFace(ctx, name, screenX, drawY, size, scale, squash);
   }
   ctx.restore();
-  stampFace(ctx, "bhaskar", 6, 198, 18, scale);
 }
 
 export function fitCanvas(canvas) {
-  const scale = Math.max(
-    1,
-    Math.floor(Math.min((window.innerWidth - 24) / VIEW_W, (window.innerHeight - 24) / VIEW_H)),
-  );
-  const w = VIEW_W * scale;
-  const h = VIEW_H * scale;
-  if (canvas.width !== w || canvas.height !== h) {
-    canvas.width = w;
-    canvas.height = h;
+  const coarse = window.matchMedia("(pointer: coarse)").matches;
+  const reserved = coarse ? 96 : 0;
+  const availW = Math.max(1, window.innerWidth - 24);
+  const availH = Math.max(1, window.innerHeight - 24 - reserved);
+  const fit = Math.min(availW / VIEW_W, availH / VIEW_H);
+  const scale = fit >= 1 ? Math.floor(fit) : Math.max(0.2, fit);
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = Math.max(1, Math.round(VIEW_W * scale));
+  const cssH = Math.max(1, Math.round(VIEW_H * scale));
+  const pxW = Math.max(1, Math.round(cssW * dpr));
+  const pxH = Math.max(1, Math.round(cssH * dpr));
+  if (canvas.width !== pxW || canvas.height !== pxH) {
+    canvas.width = pxW;
+    canvas.height = pxH;
   }
-  canvas.style.width = `${w}px`;
-  canvas.style.height = `${h}px`;
+  canvas.style.width = `${cssW}px`;
+  canvas.style.height = `${cssH}px`;
   return scale;
 }

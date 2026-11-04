@@ -12,15 +12,67 @@ body {
 }
 
 canvas {
-  width: min(calc(100vw - 24px), calc((100vh - 24px) * 256 / 224));
-  height: auto;
-  aspect-ratio: 256 / 224;
   background: #000;
-  image-rendering: auto;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
   touch-action: none;
 }
 
 canvas:focus {
   outline: none;
+}
+
+canvas:focus-visible {
+  outline: 2px solid #f8d020;
+  outline-offset: 4px;
+}
+
+#touch {
+  display: none;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 88px;
+  padding: 8px 16px 12px;
+  box-sizing: border-box;
+  justify-content: space-between;
+  align-items: center;
+  pointer-events: none;
+  z-index: 2;
+}
+
+#touch div {
+  display: flex;
+  gap: 10px;
+  pointer-events: auto;
+}
+
+#touch button {
+  width: 72px;
+  height: 64px;
+  border: 3px solid #1a120c;
+  border-radius: 8px;
+  background: #f8d020;
+  color: #1a120c;
+  font: 700 16px "Trebuchet MS", sans-serif;
+  letter-spacing: 0.02em;
+  touch-action: none;
+  user-select: none;
+}
+
+#touch button[data-action="jump"] {
+  background: #e02323;
+  color: #fff8ef;
+}
+
+#touch button:active {
+  transform: translateY(2px);
+}
+
+@media (pointer: coarse) {
+  #touch {
+    display: flex;
+  }
 }

@@ -1,17 +1,18 @@
-import { audio } from "./audio.js?v=5";
+import { audio } from "./audio.js";
 import {
   drawFaces,
   drawHud,
   drawOverlay,
   drawScene,
   drawTitle,
+  drawTitleText,
   fitCanvas,
-} from "./draw.js?v=6";
-import { interact, parseLevel, prune, spawnCabbage, spawnPop, updateEntities } from "./entities.js?v=5";
-import { createInput } from "./input.js?v=5";
-import { LEVELS } from "./levels.js?v=5";
-import { createPlayer, updatePlayer } from "./player.js?v=5";
-import { snapCamera, TILE, updateBumps, updateCamera, VIEW_H, VIEW_W } from "./world.js?v=5";
+} from "./draw.js";
+import { interact, parseLevel, prune, spawnCabbage, spawnPop, updateEntities } from "./entities.js";
+import { createInput } from "./input.js";
+import { LEVELS } from "./levels.js";
+import { createPlayer, updatePlayer } from "./player.js";
+import { snapCamera, TILE, updateBumps, updateCamera, VIEW_H, VIEW_W } from "./world.js";
 
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
@@ -21,7 +22,7 @@ buffer.height = VIEW_H;
 const bctx = buffer.getContext("2d");
 let scale = 1;
 
-const input = createInput(canvas);
+const input = createInput(canvas, document.getElementById("touch"));
 const game = {
   state: "title",
   levelIndex: 0,
@@ -81,7 +82,7 @@ function update() {
   game.time += 1;
 
   if (game.state === "title") {
-    if (input.startPressed) {
+    if (input.pressedAny) {
       audio.start();
       resetRun();
     }
@@ -89,16 +90,15 @@ function update() {
     const jumped = updatePlayer(game.player, input, game.world);
     if (jumped) audio.jump();
     updateBumps(game.world);
-    game.entities = updateEntities(game.entities, game.world);
+    game.entities = updateEntities(game.entities, game.world, game.camera);
     const events = interact(game.player, game.entities, game.world);
     for (const sprout of events.sprouts) spawnCabbage(game.entities, sprout.x, sprout.y);
     if (events.coins) {
       game.coins += events.coins;
       addScore(events.coins * 200);
       audio.coin();
-    } else if (events.sprouts.length || events.bumped) {
-      audio.bump();
     }
+    if (events.sprouts.length || (events.bumped && !events.coins)) audio.bump();
     if (events.cabbages) {
       addScore(events.cabbages * 1000);
       audio.cabbage();
@@ -117,6 +117,7 @@ function update() {
     updateCamera(game.camera, game.player, game.world);
     if (game.banner > 0) game.banner -= 1;
   } else if (game.state === "hurt") {
+    updateBumps(game.world);
     game.timer -= 1;
     if (game.timer <= 0) {
       if (game.lives <= 0) game.state = "gameOver";
@@ -124,12 +125,14 @@ function update() {
     }
   } else if (game.state === "levelClear") {
     game.timer -= 1;
-    game.entities = updateEntities(game.entities, game.world);
+    updateBumps(game.world);
+    game.entities = updateEntities(game.entities, game.world, game.camera, { popsOnly: true });
+    game.entities = prune(game.entities);
     if (game.timer <= 0) {
       if (game.levelIndex >= LEVELS.length - 1) game.state = "worldClear";
       else loadLevel(game.levelIndex + 1);
     }
-  } else if ((game.state === "gameOver" || game.state === "worldClear") && input.startPressed) {
+  } else if ((game.state === "gameOver" || game.state === "worldClear") && input.pressedAny) {
     game.state = "title";
   }
 
@@ -137,34 +140,49 @@ function update() {
 }
 
 function render() {
+  const shake = game.state === "hurt" && game.timer % 4 < 2 ? 2 : 0;
+  const blink = game.state === "hurt" && Math.floor(game.timer / 4) % 2 === 0;
+
+  bctx.setTransform(1, 0, 0, 1, 0, 0);
   bctx.imageSmoothingEnabled = false;
+  bctx.clearRect(0, 0, VIEW_W, VIEW_H);
   if (game.state === "title") {
     drawTitle(bctx, game.time);
   } else {
-    const shake = game.state === "hurt" && game.timer % 4 < 2 ? 2 : 0;
     bctx.save();
     bctx.translate(shake, 0);
-    drawScene(bctx, game);
+    drawScene(bctx, game, blink);
     bctx.restore();
-    drawHud(bctx, game);
-    drawOverlay(bctx, game);
   }
+
+  const dpr = window.devicePixelRatio || 1;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.imageSmoothingEnabled = false;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
   ctx.drawImage(buffer, 0, 0, VIEW_W * scale, VIEW_H * scale);
-  drawFaces(ctx, game, scale);
+  drawFaces(ctx, game, scale, { shake, blink });
+
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.scale(scale, scale);
+  if (game.state === "title") drawTitleText(ctx, game.time);
+  else {
+    drawHud(ctx, game);
+    drawOverlay(ctx, game);
+  }
+  ctx.restore();
 }
 
 let last = 0;
 let acc = 0;
 const STEP = 1000 / 60;
-let rafSeen = 0;
 
 function frame(now) {
   if (!last) last = now;
   let delta = now - last;
-  last = now;
+  if (delta < 0) delta = 0;
   if (delta > 100) delta = 100;
+  last = now;
   acc += delta;
   let guard = 0;
   while (acc >= STEP && guard < 5) {
@@ -172,30 +190,50 @@ function frame(now) {
     acc -= STEP;
     guard += 1;
   }
+  if (acc > STEP) acc = STEP;
   render();
 }
 
 function onRaf(now) {
-  rafSeen = performance.now();
-  frame(now);
   requestAnimationFrame(onRaf);
-}
-
-function watchdog() {
-  if (performance.now() - rafSeen > 50) frame(performance.now());
-  setTimeout(watchdog, STEP);
+  if (document.hidden) {
+    last = 0;
+    acc = 0;
+    return;
+  }
+  try {
+    frame(now);
+  } catch (err) {
+    console.error(err);
+  }
 }
 
 window.addEventListener("keydown", () => audio.unlock());
 window.addEventListener("pointerdown", () => audio.unlock());
+document.addEventListener("visibilitychange", () => {
+  last = 0;
+  acc = 0;
+});
+
 function resize() {
   scale = fitCanvas(canvas);
+  render();
 }
+
+function watchDpr() {
+  const mq = window.matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`);
+  const onChange = () => {
+    mq.removeEventListener("change", onChange);
+    resize();
+    watchDpr();
+  };
+  mq.addEventListener("change", onChange);
+}
+
 window.addEventListener("resize", resize);
-canvas.addEventListener("pointerdown", () => canvas.focus());
 resize();
 canvas.focus();
+watchDpr();
 
-window.pipeRun = game;
+if (new URLSearchParams(location.search).has("debug")) window.pipeRun = game;
 requestAnimationFrame(onRaf);
-setTimeout(watchdog, 80);

@@ -4,10 +4,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Pipe Run</title>
-  <link rel="stylesheet" href="style.css?v=5">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <canvas id="game" width="256" height="224" tabindex="0" aria-label="Pipe Run, a side-scrolling platformer"></canvas>
-  <script type="module" src="src/main.js?v=6"></script>
+  <div id="touch">
+    <div>
+      <button type="button" data-action="left" aria-label="Move left">Left</button>
+      <button type="button" data-action="right" aria-label="Move right">Right</button>
+    </div>
+    <div>
+      <button type="button" data-action="run" aria-label="Run">Run</button>
+      <button type="button" data-action="jump" aria-label="Jump">Jump</button>
+    </div>
+  </div>
+  <script type="module" src="src/main.js"></script>
 </body>
 </html>

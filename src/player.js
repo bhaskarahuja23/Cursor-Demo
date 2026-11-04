@@ -1,4 +1,4 @@
-import { moveBody } from "./world.js?v=5";
+import { moveBody } from "./world.js";
 
 const GRAVITY = 0.45;
 const JUMP = -7.35;
@@ -29,6 +29,9 @@ export function createPlayer(x, y) {
 }
 
 export function updatePlayer(player, input, world) {
+  player.prevY = player.y;
+  player.prevVy = player.vy;
+
   const accel = player.onGround ? ACCEL : AIR_ACCEL;
 
   if (input.left && !input.right) {
@@ -45,8 +48,14 @@ export function updatePlayer(player, input, world) {
   }
 
   const max = input.run ? RUN : WALK;
-  if (player.vx > max) player.vx = max;
-  if (player.vx < -max) player.vx = -max;
+  if (player.onGround) {
+    if (player.vx > max) player.vx = max;
+    if (player.vx < -max) player.vx = -max;
+  } else {
+    const cap = Math.max(max, Math.min(RUN, Math.abs(player.vx)));
+    if (player.vx > cap) player.vx = cap;
+    if (player.vx < -cap) player.vx = -cap;
+  }
 
   player.vy = Math.min(player.vy + GRAVITY, MAX_FALL);
   let jumped = false;
@@ -54,11 +63,10 @@ export function updatePlayer(player, input, world) {
     player.vy = JUMP;
     player.onGround = false;
     jumped = true;
+  } else if (!input.jump && player.vy < JUMP_CUT) {
+    player.vy = JUMP_CUT;
   }
-  if (!input.jump && player.vy < JUMP_CUT) player.vy = JUMP_CUT;
 
-  player.prevY = player.y;
-  player.prevVy = player.vy;
   moveBody(world, player, player.vx, player.vy);
 
   if (!player.onGround) {

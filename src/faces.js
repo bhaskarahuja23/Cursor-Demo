@@ -1,13 +1,16 @@
-function load(src) {
+function load(file) {
   const image = new Image();
-  image.src = src;
+  image.src = new URL(`../assets/${file}`, import.meta.url).href;
+  image.addEventListener("error", () => {
+    console.warn(`portrait failed to load: ${file}`);
+  });
   return image;
 }
 
 const faces = {
-  bhaskar: load("assets/bhaskar.jpg"),
-  giulio: load("assets/giulio.jpg"),
-  francesco: load("assets/francesco.jpg"),
+  bhaskar: load("bhaskar.jpg"),
+  giulio: load("giulio.jpg"),
+  francesco: load("francesco.jpg"),
 };
 
 export function faceImage(name) {

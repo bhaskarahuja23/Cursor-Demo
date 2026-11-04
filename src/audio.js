@@ -6,13 +6,13 @@ function ac() {
     if (!AudioCtx) return null;
     ctx = new AudioCtx();
   }
-  if (ctx.state === "suspended") ctx.resume();
+  if (ctx.state === "suspended") ctx.resume().catch(() => {});
   return ctx;
 }
 
 function tone(freq, dur, type, vol, delay = 0) {
   const c = ac();
-  if (!c) return;
+  if (!c || c.state !== "running") return;
   const t = c.currentTime + delay;
   const osc = c.createOscillator();
   const gain = c.createGain();
@@ -24,6 +24,10 @@ function tone(freq, dur, type, vol, delay = 0) {
   gain.connect(c.destination);
   osc.start(t);
   osc.stop(t + dur + 0.02);
+  osc.onended = () => {
+    osc.disconnect();
+    gain.disconnect();
+  };
 }
 
 export const audio = {

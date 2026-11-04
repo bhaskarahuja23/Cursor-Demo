@@ -45,6 +45,19 @@ function overlappingSolids(world, x, y, w, h) {
   return hits;
 }
 
+function overlapX(body, tile) {
+  return Math.min(body.x + body.w, tile.right) - Math.max(body.x, tile.left);
+}
+
+function overlapY(body, tile) {
+  return Math.min(body.y + body.h, tile.bottom) - Math.max(body.y, tile.top);
+}
+
+function feetOnGround(world, body) {
+  const y = body.y + body.h + 0.05;
+  return solidAt(world, body.x + 0.5, y) || solidAt(world, body.x + body.w - 0.5, y);
+}
+
 export function moveBody(world, body, dx, dy) {
   body.hitWall = false;
   body.onGround = false;
@@ -53,7 +66,11 @@ export function moveBody(world, body, dx, dy) {
 
   if (dx !== 0) {
     body.x += dx;
-    const hits = overlappingSolids(world, body.x, body.y, body.w, body.h);
+    const hits = overlappingSolids(world, body.x, body.y, body.w, body.h).filter((tile) => {
+      const px = overlapX(body, tile);
+      const py = overlapY(body, tile);
+      return px > 0 && px <= py;
+    });
     if (hits.length) {
       if (dx > 0) {
         let edge = Infinity;
@@ -88,6 +105,14 @@ export function moveBody(world, body, dx, dy) {
       }
     }
   }
+
+  if (!body.onGround && feetOnGround(world, body)) body.onGround = true;
+}
+
+function cameraFocus(player, world) {
+  const max = Math.max(0, world.width * TILE - VIEW_W);
+  const target = player.x + player.w / 2 - VIEW_W / 2 + player.facing * 28;
+  return Math.max(0, Math.min(max, target));
 }
 
 export function updateBumps(world) {
@@ -102,16 +127,13 @@ export function bumpOffset(world, tx, ty) {
 }
 
 export function updateCamera(camera, player, world) {
-  const max = Math.max(0, world.width * TILE - VIEW_W);
-  const target = player.x + player.w / 2 - VIEW_W / 2 + player.facing * 28;
-  const clamped = Math.max(0, Math.min(max, target));
+  const clamped = cameraFocus(player, world);
   camera.x += (clamped - camera.x) * 0.14;
   if (Math.abs(camera.x - clamped) < 0.35) camera.x = clamped;
+  const max = Math.max(0, world.width * TILE - VIEW_W);
   camera.x = Math.max(0, Math.min(max, camera.x));
 }
 
 export function snapCamera(camera, player, world) {
-  const max = Math.max(0, world.width * TILE - VIEW_W);
-  const target = player.x + player.w / 2 - VIEW_W / 2 + player.facing * 28;
-  camera.x = Math.max(0, Math.min(max, target));
+  camera.x = cameraFocus(player, world);
 }
