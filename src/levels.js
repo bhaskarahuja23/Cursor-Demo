@@ -60,67 +60,89 @@ function coins(rows, x, y, n) {
 }
 
 export const LEVELS = [
-  create(96, (rows) => {
-    put(rows, 3, 11, "S");
-    coins(rows, 9, 9, 3);
-    put(rows, 15, 11, "G");
-    pipe(rows, 20, 2);
-    gap(rows, 26, 2);
-    coins(rows, 30, 8, 3);
-    blocks(rows, 35, 8, "?B?B");
-    put(rows, 42, 11, "G");
-    pipe(rows, 50, 2);
-    coins(rows, 60, 7, 3);
-    gap(rows, 66, 2);
-    put(rows, 72, 11, "G");
-    blocks(rows, 74, 8, "B?B");
-    pipe(rows, 82, 2);
-    flag(rows, 90, 4, 11);
-  }),
-  create(112, (rows) => {
+  create(136, (rows) => {
     put(rows, 3, 11, "S");
     coins(rows, 8, 9, 3);
-    pipe(rows, 14, 2);
-    put(rows, 20, 11, "G");
-    blocks(rows, 18, 8, "B?B?B?B");
-    pipe(rows, 28, 3);
-    put(rows, 26, 8, "C");
-    put(rows, 32, 8, "C");
-    platform(rows, 38, 9, 6);
-    put(rows, 40, 8, "K");
-    gap(rows, 50, 3);
-    put(rows, 60, 11, "G");
-    pipe(rows, 68, 2);
-    blocks(rows, 72, 8, "?B?B?");
-    put(rows, 78, 11, "K");
-    coins(rows, 84, 8, 3);
-    pipe(rows, 92, 3);
-    flag(rows, 104, 4, 11);
-  }),
-  create(124, (rows) => {
-    put(rows, 2, 11, "S");
-    put(rows, 8, 11, "G");
-    stairs(rows, 14, 4, 1);
-    stairs(rows, 18, 4, -1);
-    blocks(rows, 16, 5, "???");
-    coins(rows, 24, 9, 2);
-    pipe(rows, 32, 2);
-    put(rows, 38, 11, "G");
-    gap(rows, 48, 6);
-    platform(rows, 50, 10, 5);
-    coins(rows, 51, 8, 2);
-    put(rows, 52, 9, "K");
-    put(rows, 62, 11, "G");
+    put(rows, 14, 11, "G");
+    pipe(rows, 22, 2);
+    coins(rows, 27, 8, 3);
+    gap(rows, 34, 2);
+    put(rows, 40, 11, "K");
+    blocks(rows, 46, 8, "?B?B");
+    put(rows, 56, 11, "G");
+    coins(rows, 62, 9, 3);
     pipe(rows, 70, 2);
-    put(rows, 78, 11, "K");
-    gap(rows, 86, 3);
-    coins(rows, 86, 8, 3);
+    gap(rows, 76, 2);
+    put(rows, 82, 11, "K");
+    blocks(rows, 88, 8, "B?B");
+    coins(rows, 94, 7, 3);
+    put(rows, 102, 11, "G");
+    pipe(rows, 110, 3);
+    put(rows, 116, 8, "C");
+    put(rows, 120, 11, "K");
+    coins(rows, 126, 9, 2);
+    flag(rows, 130, 4, 11);
+  }),
+  create(158, (rows) => {
+    put(rows, 3, 11, "S");
+    coins(rows, 8, 9, 3);
+    blocks(rows, 14, 8, "B?B?B?B");
+    put(rows, 24, 11, "G");
+    pipe(rows, 32, 2);
+    put(rows, 40, 11, "K");
+    gap(rows, 48, 2);
+    put(rows, 54, 11, "G");
+    platform(rows, 62, 9, 7);
+    coins(rows, 62, 8, 3);
+    put(rows, 67, 8, "K");
+    pipe(rows, 76, 3);
+    put(rows, 74, 8, "C");
+    put(rows, 80, 8, "C");
+    blocks(rows, 86, 8, "?B?B?");
+    put(rows, 96, 11, "G");
+    gap(rows, 104, 2);
+    put(rows, 110, 11, "K");
+    coins(rows, 116, 8, 3);
+    pipe(rows, 124, 2);
+    put(rows, 132, 11, "G");
+    blocks(rows, 138, 8, "B?B");
+    coins(rows, 142, 9, 3);
+    put(rows, 146, 11, "K");
+    flag(rows, 152, 4, 11);
+  }),
+  create(176, (rows) => {
+    put(rows, 2, 11, "S");
+    coins(rows, 6, 9, 3);
+    put(rows, 13, 11, "G");
+    stairs(rows, 20, 4, 1);
+    stairs(rows, 24, 4, -1);
+    blocks(rows, 22, 5, "???");
+    coins(rows, 32, 9, 2);
+    put(rows, 38, 11, "K");
+    pipe(rows, 46, 2);
+    put(rows, 54, 11, "G");
+    gap(rows, 62, 6);
+    platform(rows, 64, 10, 6);
+    coins(rows, 64, 9, 2);
+    put(rows, 67, 9, "K");
+    put(rows, 78, 11, "G");
+    pipe(rows, 86, 2);
     blocks(rows, 92, 8, "B?B?B");
-    stairs(rows, 102, 2, 1);
-    platform(rows, 104, 10, 16);
-    platform(rows, 104, 11, 16);
-    coins(rows, 108, 8, 2);
-    flag(rows, 112, 3, 9);
+    put(rows, 100, 11, "K");
+    gap(rows, 108, 2);
+    put(rows, 114, 11, "G");
+    coins(rows, 120, 8, 3);
+    pipe(rows, 128, 3);
+    put(rows, 136, 11, "K");
+    stairs(rows, 144, 3, 1);
+    platform(rows, 146, 9, 12);
+    platform(rows, 146, 10, 12);
+    platform(rows, 146, 11, 12);
+    coins(rows, 148, 8, 3);
+    put(rows, 154, 8, "G");
+    stairs(rows, 158, 3, -1);
+    put(rows, 166, 11, "K");
+    flag(rows, 170, 4, 11);
   }),
 ];
 

@@ -102,6 +102,12 @@ export function createInput(target, touchRoot) {
     get jumpPressed() {
       return pressed.has("jump");
     },
+    get leftPressed() {
+      return pressed.has("left");
+    },
+    get rightPressed() {
+      return pressed.has("right");
+    },
     get startPressed() {
       return pressed.has("start");
     },

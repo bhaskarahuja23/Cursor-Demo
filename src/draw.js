@@ -1,5 +1,5 @@
-import { faceImage } from "./faces.js";
-import { TILE, VIEW_H, VIEW_W, bumpOffset } from "./world.js";
+import { faceImage, portraits } from "./faces.js?v=7";
+import { TILE, VIEW_H, VIEW_W, bumpOffset } from "./world.js?v=7";
 
 const FONT = {
   A: ["010", "101", "111", "101", "101"],
@@ -233,7 +233,7 @@ function drawPortrait(ctx, image, x, y, size, squash = 1) {
   return true;
 }
 
-export function drawRunner(ctx, x, y, facing, frame) {
+export function drawRunner(ctx, x, y, facing, frame, pixelFace = false) {
   const dx = Math.round(x);
   const dy = Math.round(y);
   ctx.save();
@@ -266,7 +266,7 @@ export function drawRunner(ctx, x, y, facing, frame) {
     ctx.fillRect(2, 15, 4, 1);
     ctx.fillRect(10, 15, 4, 1);
   }
-  if (!faceImage("bhaskar")) {
+  if (pixelFace) {
     ctx.fillStyle = "#f6c8a4";
     ctx.fillRect(5, 5, 7, 4);
     ctx.fillStyle = "#1a1a1a";
@@ -276,7 +276,7 @@ export function drawRunner(ctx, x, y, facing, frame) {
 }
 
 function drawWalker(ctx, entity, cam, frame) {
-  if (faceImage("giulio")) return;
+  if (entity.face && faceImage(entity.face)) return;
   const x = Math.round(entity.x + (entity.w - 14) / 2 - cam);
   const y = Math.round(entity.y + entity.h - (entity.dead ? 6 : 16));
   if (entity.dead) {
@@ -305,7 +305,7 @@ function drawWalker(ctx, entity, cam, frame) {
 }
 
 function drawCrawler(ctx, entity, cam, frame) {
-  if (faceImage("francesco")) return;
+  if (entity.face && faceImage(entity.face)) return;
   const facing = entity.vx < 0 ? -1 : 1;
   const x = Math.round(entity.x + (entity.w - 16) / 2 - cam);
   const y = Math.round(entity.y + entity.h - (entity.dead ? 6 : 12));
@@ -385,7 +385,14 @@ export function drawScene(ctx, game, blink = false) {
 
   drawEntities(ctx, entities, camera, game.time);
   if (!blink) {
-    drawRunner(ctx, player.x - cam - 2, player.y, player.facing, player.onGround ? player.frame : 1);
+    drawRunner(
+      ctx,
+      player.x - cam - 2,
+      player.y,
+      player.facing,
+      player.onGround ? player.frame : 1,
+      !faceImage(game.heroId),
+    );
   }
 }
 
@@ -397,8 +404,8 @@ export function drawHud(ctx, game) {
   drawTextShadow(ctx, `x${String(game.coins).padStart(2, "0")}`, 104, 18, "#f8d020");
   drawTextShadow(ctx, "WORLD", 188, 6, "#ffffff");
   drawTextShadow(ctx, `1-${level}`, 200, 18, "#ffffff");
-  drawRunner(ctx, 8, 200, 1, 0);
-  stampFace(ctx, "bhaskar", 8, 198, 16, 1);
+  drawRunner(ctx, 8, 200, 1, 0, !faceImage(game.heroId));
+  stampFace(ctx, game.heroId, 8, 198, 16, 1);
   drawTextShadow(ctx, `x${game.lives}`, 28, 206, "#ffffff");
 
   if (game.state === "playing" && game.banner > 30) {
@@ -411,7 +418,35 @@ function dim(ctx) {
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);
 }
 
-export function drawTitle(ctx, time) {
+function titleLayout(count) {
+  const cols = count > 6 ? Math.ceil(count / 2) : Math.max(count, 1);
+  const gap = count > 6 ? 6 : 10;
+  const maxW = VIEW_W - 20;
+  let size = count > 6 ? 22 : 28;
+  while (size > 16 && cols * size + Math.max(0, cols - 1) * gap > maxW) size -= 2;
+  const rowW = cols * size + Math.max(0, cols - 1) * gap;
+  const x0 = Math.round((VIEW_W - rowW) / 2);
+  const y0 = 16;
+  const slots = [];
+  for (let i = 0; i < count; i++) {
+    slots.push({
+      x: x0 + (i % cols) * (size + gap),
+      y: y0 + Math.floor(i / cols) * (size + gap),
+      size,
+    });
+  }
+  const bottom = slots.reduce((max, slot) => Math.max(max, slot.y + slot.size), y0);
+  const nameY = Math.max(54, bottom + 10);
+  const enterY = nameY + 16;
+  return { slots, bottom, nameY, enterY };
+}
+
+function selectedIndex(game, count) {
+  if (!count) return 0;
+  return ((game.selected % count) + count) % count;
+}
+
+export function drawTitle(ctx, game) {
   ctx.fillStyle = "#5c94fc";
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);
   drawClouds(ctx, 0);
@@ -424,15 +459,26 @@ export function drawTitle(ctx, time) {
     ctx.fillStyle = "#d8f090";
     ctx.fillRect(x, 192, 16, 2);
   }
-  const step = Math.floor(time / 8) % 2;
-  drawRunner(ctx, 116, 176, 1, step);
+  const step = Math.floor(game.time / 8) % 2;
+  const cast = portraits();
+  const hero = cast[selectedIndex(game, cast.length)];
+  drawRunner(ctx, 116, 176, 1, step, !(hero && faceImage(hero.id)));
   drawCabbage(ctx, 78, 172);
 }
 
-export function drawTitleText(ctx, time) {
-  centerText(ctx, "PIPE RUN", 40, "#ffffff");
-  const blink = Math.floor(time / 24) % 2 === 0;
-  centerText(ctx, "PRESS ENTER", 68, blink ? "#f8d020" : "#ffffff");
+export function drawTitleText(ctx, game) {
+  const cast = portraits();
+  const hero = cast[selectedIndex(game, cast.length)];
+  const { nameY, enterY } = titleLayout(cast.length);
+  centerText(ctx, "PIPE RUN", 2, "#ffffff");
+  if (hero) {
+    const label = hero.name.toUpperCase();
+    const scale = textWidth(label, 2) <= VIEW_W - 8 ? 2 : 1;
+    centerText(ctx, label, nameY, "#f8d020", scale);
+  }
+  const blink = Math.floor(game.time / 24) % 2 === 0;
+  centerText(ctx, "PRESS ENTER", enterY, blink ? "#f8d020" : "#ffffff");
+  centerText(ctx, "ARROWS CHOOSE", 98, "#f8d020", 1);
   centerText(ctx, "ARROWS OR AD MOVE", 112, "#ffffff", 1);
   centerText(ctx, "SHIFT OR J RUNS", 126, "#ffffff", 1);
   centerText(ctx, "SPACE OR K JUMPS", 140, "#ffffff", 1);
@@ -458,6 +504,19 @@ export function drawOverlay(ctx, game) {
     ctx.fillStyle = "rgba(180, 16, 16, 0.22)";
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
   }
+}
+
+function paintSelect(ctx, x, y, size, scale) {
+  const cx = (x + size / 2) * scale;
+  const cy = (y + size / 2) * scale;
+  const radius = (size / 2 + 3) * scale;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fillStyle = "#f8d020";
+  ctx.fill();
+  ctx.lineWidth = Math.max(2, scale * 0.8);
+  ctx.strokeStyle = "#6b4a08";
+  ctx.stroke();
 }
 
 function stampFace(ctx, name, x, y, size, scale, squash = 1) {
@@ -495,9 +554,18 @@ export function drawFaces(ctx, game, scale, fx = {}) {
   ctx.save();
   ctx.imageSmoothingEnabled = true;
   if (game.state === "title") {
-    stampFace(ctx, "giulio", 16, 158, 34, scale);
-    stampFace(ctx, "francesco", 206, 160, 32, scale);
-    stampFace(ctx, "bhaskar", 116, 172, 18, scale);
+    const cast = portraits();
+    const { slots } = titleLayout(cast.length);
+    const selected = selectedIndex(game, cast.length);
+    for (let i = 0; i < cast.length; i++) {
+      const slot = slots[i];
+      ctx.imageSmoothingEnabled = true;
+      if (i === selected) paintSelect(ctx, slot.x, slot.y, slot.size, scale);
+      stampFace(ctx, cast[i].id, slot.x, slot.y, slot.size, scale);
+    }
+    const hero = cast[selected];
+    if (hero) stampFace(ctx, hero.id, 116, 172, 18, scale);
+    ctx.imageSmoothingEnabled = true;
     paintCoin(ctx, 96, 168 + coinBob(game.time, 0), 12, 12, scale);
     paintCoin(ctx, 148, 164 + coinBob(game.time, 1.4), 12, 12, scale);
     ctx.restore();
@@ -507,22 +575,22 @@ export function drawFaces(ctx, game, scale, fx = {}) {
   const cam = Math.round(game.camera.x);
   ctx.translate(shake * scale, 0);
   if (!blink && game.player) {
-    stampFace(ctx, "bhaskar", game.player.x - cam, game.player.y, game.player.w, scale);
+    stampFace(ctx, game.heroId, game.player.x - cam, game.player.y, game.player.w, scale);
   }
   for (const entity of game.entities) {
     const screenX = entity.x - cam;
     if (screenX < -48 || screenX > VIEW_W + 48) continue;
     if (entity.type === "coin") {
+      ctx.imageSmoothingEnabled = true;
       const bob = coinBob(game.time, entity.x * 0.05);
       paintCoin(ctx, screenX, entity.y + bob, entity.w, entity.h, scale);
       continue;
     }
-    if (entity.type !== "enemy") continue;
+    if (entity.type !== "enemy" || !entity.face) continue;
     const squash = entity.dead ? 0.45 : 1;
     const size = entity.w;
     const drawY = entity.y + entity.h - size * squash;
-    const name = entity.kind === "walker" ? "giulio" : "francesco";
-    stampFace(ctx, name, screenX, drawY, size, scale, squash);
+    stampFace(ctx, entity.face, screenX, drawY, size, scale, squash);
   }
   ctx.restore();
 }

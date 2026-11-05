@@ -1,4 +1,4 @@
-import { moveBody } from "./world.js";
+import { moveBody } from "./world.js?v=7";
 
 const GRAVITY = 0.45;
 const JUMP = -7.35;

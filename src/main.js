@@ -1,4 +1,4 @@
-import { audio } from "./audio.js";
+import { audio } from "./audio.js?v=7";
 import {
   drawFaces,
   drawHud,
@@ -7,12 +7,13 @@ import {
   drawTitle,
   drawTitleText,
   fitCanvas,
-} from "./draw.js";
-import { interact, parseLevel, prune, spawnCabbage, spawnPop, updateEntities } from "./entities.js";
-import { createInput } from "./input.js";
-import { LEVELS } from "./levels.js";
-import { createPlayer, updatePlayer } from "./player.js";
-import { snapCamera, TILE, updateBumps, updateCamera, VIEW_H, VIEW_W } from "./world.js";
+} from "./draw.js?v=7";
+import { assignEnemyFaces, interact, parseLevel, prune, spawnCabbage, spawnPop, updateEntities } from "./entities.js?v=7";
+import { enemyRoster, facesReady, portraits } from "./faces.js?v=7";
+import { createInput } from "./input.js?v=7";
+import { LEVELS } from "./levels.js?v=7";
+import { createPlayer, updatePlayer } from "./player.js?v=7";
+import { snapCamera, TILE, updateBumps, updateCamera, VIEW_H, VIEW_W } from "./world.js?v=7";
 
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
@@ -25,6 +26,9 @@ let scale = 1;
 const input = createInput(canvas, document.getElementById("touch"));
 const game = {
   state: "title",
+  selected: 0,
+  heroId: null,
+  heroName: "",
   levelIndex: 0,
   score: 0,
   coins: 0,
@@ -36,13 +40,17 @@ const game = {
   timer: 0,
   banner: 0,
   time: 0,
+  facesReady: false,
+  cast: portraits(),
 };
 
 function loadLevel(index) {
   const parsed = parseLevel(LEVELS[index]);
+  assignEnemyFaces(parsed.entities, enemyRoster(game.heroId));
   game.levelIndex = index;
   game.world = parsed.world;
   game.player = createPlayer(parsed.start.x, parsed.start.y);
+  game.player.face = game.heroId;
   game.entities = parsed.entities;
   game.camera = { x: 0 };
   snapCamera(game.camera, game.player, game.world);
@@ -51,6 +59,10 @@ function loadLevel(index) {
 }
 
 function resetRun() {
+  const cast = portraits();
+  const picked = cast[game.selected] || cast[0];
+  game.heroId = picked.id;
+  game.heroName = picked.name;
   game.score = 0;
   game.coins = 0;
   game.lives = 3;
@@ -82,7 +94,10 @@ function update() {
   game.time += 1;
 
   if (game.state === "title") {
-    if (input.pressedAny) {
+    const count = portraits().length;
+    if (count && input.leftPressed) game.selected = (game.selected - 1 + count) % count;
+    if (count && input.rightPressed) game.selected = (game.selected + 1) % count;
+    if (input.startPressed && count) {
       audio.start();
       resetRun();
     }
@@ -140,6 +155,7 @@ function update() {
 }
 
 function render() {
+  game.facesReady = facesReady();
   const shake = game.state === "hurt" && game.timer % 4 < 2 ? 2 : 0;
   const blink = game.state === "hurt" && Math.floor(game.timer / 4) % 2 === 0;
 
@@ -147,7 +163,7 @@ function render() {
   bctx.imageSmoothingEnabled = false;
   bctx.clearRect(0, 0, VIEW_W, VIEW_H);
   if (game.state === "title") {
-    drawTitle(bctx, game.time);
+    drawTitle(bctx, game);
   } else {
     bctx.save();
     bctx.translate(shake, 0);
@@ -165,7 +181,7 @@ function render() {
   ctx.save();
   ctx.imageSmoothingEnabled = false;
   ctx.scale(scale, scale);
-  if (game.state === "title") drawTitleText(ctx, game.time);
+  if (game.state === "title") drawTitleText(ctx, game);
   else {
     drawHud(ctx, game);
     drawOverlay(ctx, game);
@@ -194,18 +210,27 @@ function frame(now) {
   render();
 }
 
-function onRaf(now) {
-  requestAnimationFrame(onRaf);
-  if (document.hidden) {
-    last = 0;
-    acc = 0;
-    return;
-  }
+let pumpedAt = 0;
+
+function pump(now) {
+  pumpedAt = now;
   try {
     frame(now);
   } catch (err) {
     console.error(err);
   }
+}
+
+function onRaf(now) {
+  requestAnimationFrame(onRaf);
+  if (document.hidden) return;
+  pump(now);
+}
+
+function watchdog() {
+  const now = performance.now();
+  if (now - pumpedAt >= 32) pump(now);
+  setTimeout(watchdog, 16);
 }
 
 window.addEventListener("keydown", () => audio.unlock());
@@ -235,5 +260,12 @@ resize();
 canvas.focus();
 watchDpr();
 
-if (new URLSearchParams(location.search).has("debug")) window.pipeRun = game;
+window.pipeRun = game;
+game.pump = () => {
+  const now = performance.now();
+  if (!last || now - last < STEP) last = now - STEP;
+  pump(now);
+};
+
 requestAnimationFrame(onRaf);
+setTimeout(watchdog, 16);

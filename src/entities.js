@@ -1,4 +1,4 @@
-import { TILE, VIEW_W, getTile, moveBody, setTile, solidAt } from "./world.js";
+import { TILE, VIEW_W, getTile, moveBody, setTile, solidAt } from "./world.js?v=7";
 
 const SPEED = { walker: 0.58, crawler: 0.34 };
 
@@ -12,7 +12,7 @@ function makeCoin(tx, ty) {
   };
 }
 
-const ENEMY_SIZE = 32;
+const ENEMY_SIZE = 20;
 
 function makeEnemy(tx, ty, kind) {
   const foot = (ty + 1) * TILE;
@@ -26,6 +26,7 @@ function makeEnemy(tx, ty, kind) {
     h: ENEMY_SIZE,
     vx: crawler ? -SPEED.crawler : -SPEED.walker,
     vy: 0,
+    face: null,
     dead: false,
     deadTimer: 0,
     onGround: false,
@@ -80,6 +81,25 @@ export function parseLevel(rows) {
     start,
     entities,
   };
+}
+
+export function assignEnemyFaces(entities, roster) {
+  const enemies = entities
+    .filter((entity) => entity.type === "enemy")
+    .sort((a, b) => a.x - b.x || a.y - b.y);
+  if (!enemies.length || !roster.length) return;
+  if (roster.length < 2) {
+    for (const enemy of enemies) enemy.face = roster[0].id;
+    return;
+  }
+  let index = 0;
+  let previous = null;
+  for (const enemy of enemies) {
+    if (roster[index].id === previous) index = (index + 1) % roster.length;
+    enemy.face = roster[index].id;
+    previous = enemy.face;
+    index = (index + 1) % roster.length;
+  }
 }
 
 function overlaps(a, b) {
